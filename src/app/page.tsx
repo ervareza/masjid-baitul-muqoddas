@@ -3,308 +3,218 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import {
-  ChevronLeft,
-  ChevronRight,
   Download,
-  Maximize2,
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  BookOpen,
-  Grid,
+  ChevronUp,
   FileText,
   Share2,
   Check,
 } from "lucide-react";
 
-interface SlideInfo {
-  page: number;
-  title: string;
-  category: string;
-}
-
-const SLIDES: SlideInfo[] = [
-  { page: 1, title: "Cover Dokumen & Informasi Proyek", category: "Cover" },
-  { page: 2, title: "Ringkasan Isi Dokumen & Konsep Desain", category: "Ringkasan" },
-  { page: 3, title: "Render Utama: Tampak Depan", category: "Render" },
-  { page: 4, title: "Penyesuaian terhadap Struktur SketchUp", category: "Struktur" },
-  { page: 5, title: "Gambar Ukur dari File SketchUp (.skp)", category: "Ukuran" },
-  { page: 6, title: "Kecocokan Render dengan Ukuran Asli", category: "Ukuran" },
-  { page: 7, title: "Exploded View: Tampak Depan", category: "Komposisi" },
-  { page: 8, title: "Exploded View: 3D Isometrik", category: "Komposisi" },
-  { page: 9, title: "Detail 1/8: Tower Fasad & Panel Kisi", category: "Detail Arsitektur" },
-  { page: 10, title: "Detail 2/8: Jendela Atas & Balkon", category: "Detail Arsitektur" },
-  { page: 11, title: "Detail 3/8: Kubah Utama & Drum", category: "Detail Arsitektur" },
-  { page: 12, title: "Detail 4/8: Menara Bertingkat", category: "Detail Arsitektur" },
-  { page: 13, title: "Detail 5/8: Teras & Pintu Lengkung", category: "Detail Arsitektur" },
-  { page: 14, title: "Detail 6/8: Papan Nama & Plakat", category: "Detail Arsitektur" },
-  { page: 15, title: "Detail 7/8: Sayap Samping & Taman", category: "Detail Arsitektur" },
-  { page: 16, title: "Detail 8/8: Tangga Depan & Halaman", category: "Detail Arsitektur" },
-  { page: 17, title: "Lembar Kerja: Palet Warna Hex", category: "Spesifikasi" },
-  { page: 18, title: "Lembar Kerja Spesifikasi Material & Ukuran", category: "Spesifikasi" },
-  { page: 19, title: "Catatan & Hal yang Perlu Dikonfirmasi", category: "Penutup" },
-];
+const TOTAL_PAGES = 19;
+const PAGES = Array.from({ length: TOTAL_PAGES }, (_, i) => ({
+  page: i + 1,
+  src: `/slides/page-${i + 1}.webp`,
+  title: `Lembar Kerja ${i + 1}`,
+}));
 
 export default function Home() {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [showThumbnails, setShowThumbnails] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [zoom, setZoom] = useState<number>(100);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [copied, setCopied] = useState<boolean>(false);
 
-  const totalPages = SLIDES.length;
-  const currentSlide = SLIDES[currentPage - 1];
-
-  const nextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage((prev) => prev + 1);
-      setZoomLevel(1);
-    }
-  };
-
-  const prevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage((prev) => prev - 1);
-      setZoomLevel(1);
-    }
-  };
-
-  const zoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 2.5));
-  const zoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.25, 1));
-  const resetZoom = () => setZoomLevel(1);
-
+  // Deteksi halaman aktif saat pengguna scroll
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "PageDown") nextPage();
-      if (e.key === "ArrowLeft" || e.key === "PageUp") prevPage();
-      if (e.key === "Escape") {
-        setShowThumbnails(false);
-        resetZoom();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentPage]);
+    const handleScroll = () => {
+      const pageElements = document.querySelectorAll<HTMLElement>("[data-page-num]");
+      const scrollPosition = window.scrollY + window.innerHeight / 3;
 
-  const copyShareLink = () => {
-    if (navigator.clipboard) {
+      pageElements.forEach((el) => {
+        const top = el.offsetTop;
+        const height = el.offsetHeight;
+        const pageNum = parseInt(el.getAttribute("data-page-num") || "1", 10);
+
+        if (scrollPosition >= top && scrollPosition < top + height) {
+          setCurrentPage(pageNum);
+        }
+      });
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToPage = (pageNum: number) => {
+    const el = document.getElementById(`page-${pageNum}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Desain Fasad Masjid Baitul Muqoddas",
+          text: "Dokumen teknis desain fasad dan lembar kerja Masjid Baitul Muqoddas (Draf v3)",
+          url: window.location.href,
+        });
+      } catch {
+        // User cancelled
+      }
+    } else {
       navigator.clipboard.writeText(window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
+  const zoomIn = () => setZoom((prev) => Math.min(prev + 20, 200));
+  const zoomOut = () => setZoom((prev) => Math.max(prev - 20, 60));
+  const resetZoom = () => setZoom(100);
+
   return (
-    <main className="min-h-screen bg-[#0F141C] text-[#F1F4F9] flex flex-col justify-between">
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-40 bg-[#161C26]/90 backdrop-blur-md border-b border-white/10 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#29384A] to-[#DDB677] flex items-center justify-center text-white font-bold shadow-md shadow-black/40">
-            BM
+    <div className="min-h-screen bg-[#323639] text-slate-100 flex flex-col selection:bg-emerald-600 selection:text-white">
+      {/* Top Floating Sticky Header ala Google Chrome / Adobe PDF Reader */}
+      <header className="sticky top-0 z-50 bg-[#202124]/95 backdrop-blur-md border-b border-black/40 px-3 sm:px-6 py-2.5 shadow-md flex items-center justify-between">
+        {/* Left Title */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+            <FileText className="w-4 h-4 text-emerald-400" />
           </div>
-          <div>
-            <h1 className="text-sm font-semibold tracking-wide text-white leading-tight">
+          <div className="min-w-0">
+            <h1 className="text-xs sm:text-sm font-semibold text-slate-100 truncate">
               Masjid Baitul Muqoddas
             </h1>
-            <p className="text-[11px] text-[#DDB677] font-medium leading-tight">
-              Dusun Dampyak, Nyatnyono · Draf v3
+            <p className="text-[10px] text-slate-400 truncate hidden sm:block">
+              Desain Fasad & Lembar Kerja • Draf v3 (19 Halaman)
             </p>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowThumbnails(!showThumbnails)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all ${
-              showThumbnails
-                ? "bg-[#DDB677] text-[#0F141C]"
-                : "bg-white/5 hover:bg-white/10 text-white border border-white/10"
-            }`}
+        {/* Center: Page Jump Counter */}
+        <div className="flex items-center bg-[#2c2d30] border border-white/10 rounded-full px-3 py-1 shadow-inner text-xs">
+          <span className="text-slate-400 mr-1.5 hidden xs:inline">Hal</span>
+          <select
+            value={currentPage}
+            onChange={(e) => scrollToPage(Number(e.target.value))}
+            className="bg-transparent text-emerald-400 font-semibold focus:outline-none cursor-pointer pr-1 text-xs"
           >
-            <Grid className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Daftar Halaman</span>
-          </button>
+            {PAGES.map((p) => (
+              <option key={p.page} value={p.page} className="bg-[#202124] text-white">
+                {p.page}
+              </option>
+            ))}
+          </select>
+          <span className="text-slate-400 font-medium">/ {TOTAL_PAGES}</span>
+        </div>
+
+        {/* Right Actions: Zoom & Download */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Zoom controls for desktop/tablet */}
+          <div className="hidden md:flex items-center bg-[#2c2d30] border border-white/10 rounded-full px-1.5 py-1 text-xs">
+            <button
+              onClick={zoomOut}
+              disabled={zoom <= 60}
+              className="p-1 hover:text-white text-slate-400 disabled:opacity-30 transition-colors"
+              title="Perkecil (-)"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <span className="px-2 font-mono text-[11px] text-slate-300 min-w-[42px] text-center">
+              {zoom}%
+            </span>
+            <button
+              onClick={zoomIn}
+              disabled={zoom >= 200}
+              className="p-1 hover:text-white text-slate-400 disabled:opacity-30 transition-colors"
+              title="Perbesar (+)"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            {zoom !== 100 && (
+              <button
+                onClick={resetZoom}
+                className="p-1 hover:text-emerald-400 text-slate-400 transition-colors border-l border-white/10 ml-0.5"
+                title="Reset Zoom (100%)"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            )}
+          </div>
 
           <button
-            onClick={copyShareLink}
-            className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors"
-            title="Salin Tautan"
+            onClick={handleShare}
+            className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-[#2c2d30] hover:bg-[#383a3e] border border-white/10 text-xs font-medium text-slate-300 transition-colors flex items-center gap-1.5"
+            title="Bagikan Tautan"
           >
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">
+              {copied ? "Tersalin!" : "Bagikan"}
+            </span>
           </button>
 
           <a
             href="/Masjid-Baitul-Muqoddas-Desain-Fasad-Draf-v3.pdf"
-            download="Masjid-Baitul-Muqoddas-Desain-Fasad-Draf-v3.pdf"
-            className="px-3.5 py-1.5 rounded-full bg-[#DDB677] hover:bg-[#c9a363] text-[#0F141C] text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+            download
+            className="px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-md transition-colors flex items-center gap-1.5"
+            title="Download Dokumen PDF Asli"
           >
             <Download className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Download PDF</span>
+            <span className="hidden xs:inline">Unduh PDF</span>
           </a>
         </div>
       </header>
 
-      {/* Main Presentation Viewport */}
-      <section className="flex-1 flex flex-col items-center justify-center p-3 sm:p-6 relative overflow-hidden">
-        {/* Floating Zoom & Page Badge Controls */}
-        <div className="z-30 mb-3 flex items-center gap-2 bg-[#161C26]/90 border border-white/10 rounded-full px-3 py-1.5 shadow-lg backdrop-blur-sm">
-          <button
-            onClick={prevPage}
-            disabled={currentPage === 1}
-            className="p-1 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent"
-            title="Halaman Sebelumnya"
+      {/* Main Continuous Document View: Vertically Stacked Pages ala PDF Reader */}
+      <main className="flex-1 w-full max-w-[1300px] mx-auto px-2 sm:px-6 py-4 sm:py-8 flex flex-col items-center gap-4 sm:gap-6">
+        {PAGES.map((item) => (
+          <div
+            key={item.page}
+            id={`page-${item.page}`}
+            data-page-num={item.page}
+            style={{ width: `${zoom}%`, maxWidth: "100%" }}
+            className="relative transition-all duration-150 ease-out flex flex-col items-center"
           >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          <span className="text-xs font-mono font-medium px-2 text-white">
-            {currentPage} <span className="text-white/40">/</span> {totalPages}
-          </span>
-
-          <button
-            onClick={nextPage}
-            disabled={currentPage === totalPages}
-            className="p-1 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent"
-            title="Halaman Selanjutnya"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-
-          <div className="w-[1px] h-4 bg-white/20 mx-1" />
-
-          <button
-            onClick={zoomOut}
-            disabled={zoomLevel <= 1}
-            className="p-1 rounded-full hover:bg-white/10 disabled:opacity-30"
-            title="Perkecil"
-          >
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
-          <span className="text-[11px] font-mono text-[#DDB677] min-w-[36px] text-center">
-            {Math.round(zoomLevel * 100)}%
-          </span>
-          <button
-            onClick={zoomIn}
-            disabled={zoomLevel >= 2.5}
-            className="p-1 rounded-full hover:bg-white/10 disabled:opacity-30"
-            title="Perbesar"
-          >
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
-          {zoomLevel > 1 && (
-            <button
-              onClick={resetZoom}
-              className="p-1 rounded-full hover:bg-white/10 text-white/70"
-              title="Reset Zoom"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Document Canvas Container */}
-        <div className="w-full max-w-5xl flex flex-col items-center">
-          <div className="w-full bg-[#18202D] rounded-2xl border border-white/10 shadow-2xl overflow-auto max-h-[75vh] flex items-center justify-center relative p-2 sm:p-4">
-            <div
-              className="transition-transform duration-200 ease-out origin-center flex items-center justify-center"
-              style={{ transform: `scale(${zoomLevel})` }}
-            >
+            {/* Real Page Canvas with authentic PDF drop shadow */}
+            <div className="relative w-full bg-white rounded-sm shadow-[0_4px_24px_rgba(0,0,0,0.5)] border border-black/30 overflow-hidden">
               <Image
-                src={`/slides/page-${currentPage}.webp`}
-                alt={currentSlide.title}
-                width={1200}
-                height={800}
-                priority
-                className="rounded-lg shadow-xl object-contain max-h-[70vh] w-auto h-auto"
+                src={item.src}
+                alt={`Halaman ${item.page} - Desain Fasad Masjid Baitul Muqoddas`}
+                width={2000}
+                height={1414}
+                quality={90}
+                priority={item.page <= 3}
+                className="w-full h-auto block select-none pointer-events-auto"
+                loading={item.page <= 3 ? "eager" : "lazy"}
               />
             </div>
-          </div>
 
-          {/* Subtitle & Caption */}
-          <div className="w-full mt-3 flex flex-col sm:flex-row items-center justify-between text-xs text-white/70 px-2 gap-1">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-[#DDB677]/20 text-[#DDB677] font-semibold text-[10px] tracking-wide uppercase">
-                {currentSlide.category}
-              </span>
-              <span className="font-medium text-white">{currentSlide.title}</span>
-            </div>
-            <div className="text-[11px] text-white/50">
-              Gunakan tombol panah ◀ ▶ keyboard untuk berpindah halaman
+            {/* Subtle Page Number Footer */}
+            <div className="mt-2 text-[11px] text-slate-400 font-medium tracking-wide">
+              Halaman {item.page} dari {TOTAL_PAGES}
             </div>
           </div>
-        </div>
-      </section>
+        ))}
+      </main>
 
-      {/* Slide Thumbnails Drawer Modal */}
-      {showThumbnails && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
-          <div className="bg-[#161C26] border-t border-white/15 p-4 sm:p-6 max-h-[80vh] flex flex-col rounded-t-[2rem]">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-[#DDB677]" />
-                <h3 className="text-sm font-semibold text-white">
-                  Daftar Seluruh Lembar Desain ({totalPages} Halaman)
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowThumbnails(false)}
-                className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-xs font-medium text-white transition-colors"
-              >
-                Tutup ✕
-              </button>
-            </div>
-
-            <div className="overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-1">
-              {SLIDES.map((slide) => (
-                <button
-                  key={slide.page}
-                  onClick={() => {
-                    setCurrentPage(slide.page);
-                    setZoomLevel(1);
-                    setShowThumbnails(false);
-                  }}
-                  className={`flex flex-col text-left p-2 rounded-xl border transition-all ${
-                    currentPage === slide.page
-                      ? "bg-[#DDB677]/15 border-[#DDB677] ring-1 ring-[#DDB677]"
-                      : "bg-[#0F141C] border-white/10 hover:border-white/30"
-                  }`}
-                >
-                  <div className="relative aspect-[4/3] w-full mb-1.5 overflow-hidden rounded-lg bg-black/40">
-                    <Image
-                      src={`/slides/page-${slide.page}.webp`}
-                      alt={slide.title}
-                      fill
-                      sizes="200px"
-                      className="object-cover"
-                    />
-                    <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/75 text-[10px] font-mono text-white">
-                      Hal. {slide.page}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-[#DDB677] font-medium leading-tight">
-                    {slide.category}
-                  </span>
-                  <span className="text-xs text-white font-medium truncate w-full mt-0.5">
-                    {slide.title}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* Floating Bottom Quick-Jump Button on Scroll */}
+      {currentPage > 1 && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-6 right-6 z-40 p-3 rounded-full bg-[#202124]/90 hover:bg-emerald-600 text-white shadow-xl border border-white/10 backdrop-blur-md transition-all hover:scale-105"
+          title="Kembali ke atas"
+        >
+          <ChevronUp className="w-5 h-5" />
+        </button>
       )}
 
-      {/* Footer Details */}
-      <footer className="border-t border-white/10 bg-[#161C26]/60 px-4 py-2.5 text-center text-xs text-white/50 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <p className="text-[11px]">
-          Dokumentasi Fasad Masjid Baitul Muqoddas · Dusun Dampyak, Nyatnyono
-        </p>
-        <div className="flex items-center gap-3 text-[11px]">
-          <span>Format: Interaktif Web & PDF Asli</span>
-          <span>·</span>
-          <span>PT Selaras Digital Labs</span>
-        </div>
+      {/* Subtle Bottom Credit */}
+      <footer className="py-6 text-center text-xs text-slate-400 border-t border-black/30 bg-[#25282a]">
+        <p>Masjid Baitul Muqoddas • Dokumen Desain Fasad & Lembar Kerja Arsitektur (Draf v3)</p>
       </footer>
-    </main>
+    </div>
   );
 }
